@@ -63,7 +63,7 @@ after_initialize do
     end
 
     def self.fetch_html_doc(url, headers = nil)
-
+      Rails.logger.error("fetch_html_doc")
       response = (fetch_response(url, nil, nil, headers) rescue nil)
 
       if SiteSetting.onebox_assistant_always_use_proxy || (response.nil? && SiteSetting.onebox_assistant_enabled)
@@ -98,5 +98,67 @@ after_initialize do
 
       doc
     end
+
+    def self.fetch_response(location, limit = nil, domain = nil, headers = nil)
+
+      limit ||= 5
+      limit = Onebox.options.redirect_limit if limit > Onebox.options.redirect_limit
+
+      raise Net::HTTPError.new('HTTP redirect too deep', location) if limit == 0
+
+      uri = Addressable::URI.parse(location)
+      uri = Addressable::URI.join(domain, uri) if !uri.host
+
+      result = StringIO.new
+      Net::HTTP.start(uri.host, uri.port, use_ssl: uri.normalized_scheme == 'https') do |http|
+        http.open_timeout = Onebox.options.connect_timeout
+        http.read_timeout = Onebox.options.timeout
+        http.verify_mode = OpenSSL::SSL::VERIFY_NONE  # Work around path building bugs
+
+        headers ||= {}
+
+        if Onebox.options.user_agent && !headers['User-Agent']
+          headers['User-Agent'] = Onebox.options.user_agent
+        end
+
+        request = Net::HTTP::Get.new(uri.request_uri, headers)
+        start_time = Time.now
+
+        size_bytes = Onebox.options.max_download_kb * 1024
+        http.request(request) do |response|
+
+          if cookie = response.get_fields('set-cookie')
+            # HACK: If this breaks again in the future, use HTTP::CookieJar from gem 'http-cookie'
+            # See test: it "does not send cookies to the wrong domain"
+            redir_header = { 'Cookie' => cookie.join('; ') }
+          end
+
+          redir_header = nil unless redir_header.is_a? Hash
+
+          code = response.code.to_i
+          Rails.logger.error("Got here...")
+          unless code === 200
+            bletch_location = response.fetch('location', nil)
+            Rails.logger.error("fetch_response: Code = #{code}, URL = #{uri}, Location = #{bletch_location}")
+            response.error! unless [301, 302, 303].include?(code)
+            return fetch_response(
+                response['location'],
+                limit - 1,
+                "#{uri.scheme}://#{uri.host}",
+                redir_header
+            )
+          end
+
+          response.read_body do |chunk|
+            result.write(chunk)
+            raise DownloadTooLarge.new if result.size > size_bytes
+            raise Timeout::Error.new if (Time.now - start_time) > Onebox.options.timeout
+          end
+
+          return result.string
+        end
+      end
+    end
+
   end
 end
