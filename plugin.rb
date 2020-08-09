@@ -63,8 +63,8 @@ after_initialize do
     end
 
     def self.fetch_html_doc(url, headers = nil)
-      Rails.logger.error("fetch_html_doc")
       response = (fetch_response(url, nil, nil, headers) rescue nil)
+      Rails.logger.error("fetch_html_doc: url = #{url}, headers = #{headers}, response = #{response.to_s}")
 
       if SiteSetting.onebox_assistant_always_use_proxy || (response.nil? && SiteSetting.onebox_assistant_enabled)
         retrieve_resty = MyResty.new
