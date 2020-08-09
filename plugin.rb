@@ -70,8 +70,9 @@ after_initialize do
         retrieve_resty = MyResty.new
         Rails.logger.info "ONEBOX ASSIST: the url being sought from API is " + url
         initial_response = retrieve_resty.preview(url)
-        Rails.logger.error("retrieve_resty/initial_response -> code = #{initial_response.code}, headers = #{initial_response.headers}.")
+        Rails.logger.error("1st retrieve_resty/initial_response -> code = #{initial_response.code}, headers = #{initial_response.headers}.")
         response = initial_response[SiteSetting.onebox_assistant_api_page_source_field]
+        Rails.logger.error("2nd retrieve_resty/response -> response = #{response}, class = #{response.class}.")
         if response.nil?
           Rails.logger.warning "ONEBOX ASSIST: the API returned nothing!!"
         end
