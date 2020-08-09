@@ -136,10 +136,9 @@ after_initialize do
           redir_header = nil unless redir_header.is_a? Hash
 
           code = response.code.to_i
-          Rails.logger.error("Got here...")
           unless code === 200
             bletch_location = response.fetch('location', nil)
-            Rails.logger.error("fetch_response: Code = #{code}, URL = #{uri}, Location = #{bletch_location}")
+            Rails.logger.error("fetch_response: Code = #{code}, URL = #{uri}, Location = #{bletch_location}, user-agent = #{headers['User-Agent']} redir_header = #{redir_header}.")
             response.error! unless [301, 302, 303].include?(code)
             return fetch_response(
                 response['location'],
