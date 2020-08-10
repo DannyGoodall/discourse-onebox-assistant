@@ -58,6 +58,7 @@ after_initialize do
         base_query=SiteSetting.onebox_assistant_api_base_query + url
         query = base_query + SiteSetting.onebox_assistant_api_options
         key = SiteSetting.onebox_assistant_api_key
+        Rails.logger.error("MyResty#preview: base_query=#{base_query}, query=#{query}, key=#{key}.")
         self.class.get(query, headers: {'x-api-key' => key})
       end
     end
